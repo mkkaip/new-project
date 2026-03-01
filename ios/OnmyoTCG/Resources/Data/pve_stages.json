@@ -1,0 +1,4 @@
+[
+  {"id":"stage_001","name":"初級・祓い","rewardReishi":80,"rewardOfuda":20,"rewardXP":60,"enemyDeckId":"enemy_beginner"},
+  {"id":"stage_002","name":"中級・逢魔","rewardReishi":120,"rewardOfuda":30,"rewardXP":90,"enemyDeckId":"enemy_mid"}
+]

@@ -1,0 +1,7 @@
+[
+  {"id":"pack_single","title":"1連パック","kind":"gacha","cost":160},
+  {"id":"pack_ten_discount","title":"10連パック(初回)","kind":"gacha","cost":980},
+  {"id":"pack_ten","title":"10連パック","kind":"gacha","cost":1500},
+  {"id":"monthly_silver","title":"月パス銀","kind":"monthly","cost":980},
+  {"id":"monthly_gold","title":"月パス金","kind":"monthly","cost":1980}
+]
