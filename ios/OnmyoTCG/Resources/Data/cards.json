@@ -1,0 +1,7 @@
+[
+  {"id":"c_001","name":"式神・狐火","rarity":"C","type":"unit","cost":1,"attack":1,"health":2,"params":{}},
+  {"id":"r_001","name":"式神・青龍","rarity":"R","type":"unit","cost":3,"attack":3,"health":4,"params":{"guard":1}},
+  {"id":"sr_001","name":"陰陽師・安倍","rarity":"SR","type":"unit","cost":5,"attack":5,"health":6,"params":{"taunt":1}},
+  {"id":"ur_001","name":"神降ろし・天照","rarity":"UR","type":"unit","cost":7,"attack":8,"health":8,"params":{}},
+  {"id":"field_001","name":"結界陣","rarity":"R","type":"field","cost":2,"attack":null,"health":null,"params":{"start_of_turn_add_shield":1,"self_bonus_draw_each_turn":1}}
+]
