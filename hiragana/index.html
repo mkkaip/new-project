@@ -132,7 +132,7 @@ select{border:1px solid #cad4df;border-radius:8px;background:white;padding:7px 9
     <section class="panel selector-panel">
       <div class="mode-switch" aria-label="モード選択">
         <button type="button" class="mode-btn active" id="normalModeBtn">ひらがなモード</button>
-        <button type="button" class="mode-btn" id="nameModeBtn">なまえモード</button>
+        <button type="button" class="mode-btn" id="nameModeBtn">名前モード</button>
       </div>
       <h2 id="selectHeading">1. ひらがなを選択</h2>
       <div class="toolbar">
@@ -256,8 +256,8 @@ function setMode(mode){
   appMode=mode==="name"?"name":"normal";
   document.getElementById("normalModeBtn").classList.toggle("active",appMode==="normal");
   document.getElementById("nameModeBtn").classList.toggle("active",appMode==="name");
-  document.getElementById("selectHeading").textContent=appMode==="name"?"1. なまえを順番に選択":"1. ひらがなを選択";
-  document.getElementById("selectedTitle").textContent=appMode==="name"?"なまえ":"選択中";
+  document.getElementById("selectHeading").textContent=appMode==="name"?"1. 名前を順番に選択":"1. ひらがなを選択";
+  document.getElementById("selectedTitle").textContent=appMode==="name"?"名前":"選択中";
   document.getElementById("layoutSetting").style.display=appMode==="name"?"none":"flex";
   document.getElementById("allBtn").textContent=appMode==="name"?"1文字もどす":"全選択";
   document.getElementById("clearBtn").textContent=appMode==="name"?"全消去":"全解除";
