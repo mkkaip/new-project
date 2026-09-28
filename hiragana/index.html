@@ -143,7 +143,7 @@ select{border:1px solid #cad4df;border-radius:8px;background:white;padding:7px 9
       <div class="sep"></div>
       <div class="selected-head"><span id="selectedTitle">選択中</span><span id="count">0文字</span></div>
       <div id="chips" class="chips"></div>
-      <div id="nameDisplay" class="name-display"><span>できあがり</span><strong id="nameText"></strong><div class="name-note">名前の順番に文字をタップしてください。同じ文字も追加できます。選択済みの文字をタップするとその文字を削除できます。</div></div>
+      <div id="nameDisplay" class="name-display"><span>できあがり</span><strong id="nameText"></strong><div class="name-note">名前の順番に文字をタップしてください。同じ文字も追加できます。濁点・半濁点・拗音（ゃ・ゅ・ょ）にも対応しています。選択済みの文字をタップするとその文字を削除できます。</div></div>
 
       <div class="sep"></div>
       <h2>2. 印刷設定</h2>
@@ -170,7 +170,7 @@ select{border:1px solid #cad4df;border-radius:8px;background:white;padding:7px 9
         <div class="leg"><i class="dot" style="background:var(--s5)"></i>5画目＝紫</div>
         <div class="leg"><i class="dot" style="background:var(--s6)"></i>6画目＝水色</div>
       </div>
-      <div class="ready" id="readyBox">清音46文字に加えて、濁音・半濁音も含む全71文字に対応。iPhone・iPad・Android・Windows・Macで利用できます。</div>
+      <div class="ready" id="readyBox">清音46文字に加えて、濁音・半濁音・拗音（ゃ・ゅ・ょ）を含む全74文字に対応。iPhone・iPad・Android・Windows・Macで利用できます。</div>
       <div class="smallnote">「自動」では、1文字だけ選ぶとA4いっぱいに大きく、2文字なら上下2分割、3〜4文字なら4分割、5文字以上なら6分割で配置します。すべてのマスは正方形です。</div>
       <div class="ready" style="background:#fff8e7;color:#72520a">
         スマホは「印刷ページへ」→「PDFに書き出す」の順で操作してください。
@@ -245,20 +245,26 @@ const ROWS=[
   ["だ行",["だ","ぢ","づ","で","ど"]],["な行",["な","に","ぬ","ね","の"]],
   ["は行",["は","ひ","ふ","へ","ほ"]],["ば行",["ば","び","ぶ","べ","ぼ"]],
   ["ぱ行",["ぱ","ぴ","ぷ","ぺ","ぽ"]],["ま行",["ま","み","む","め","も"]],
-  ["や行",["や","","ゆ","","よ"]],["ら行",["ら","り","る","れ","ろ"]],
-  ["わ行",["わ","","","","を"]],["",["ん","","","",""]]
+  ["や行",["や","","ゆ","","よ"]],["拗音",["ゃ","","ゅ","","ょ"]],
+  ["ら行",["ら","り","る","れ","ろ"]],["わ行",["わ","","","","を"]],["",["ん","","","",""]]
 ];
 const ORDER=ROWS.flatMap(r=>r[1]).filter(Boolean);
 const VOICED_MAP={"が":"か","ぎ":"き","ぐ":"く","げ":"け","ご":"こ","ざ":"さ","じ":"し","ず":"す","ぜ":"せ","ぞ":"そ","だ":"た","ぢ":"ち","づ":"つ","で":"て","ど":"と","ば":"は","び":"ひ","ぶ":"ふ","べ":"へ","ぼ":"ほ"};
 const SEMI_VOICED_MAP={"ぱ":"は","ぴ":"ひ","ぷ":"ふ","ぺ":"へ","ぽ":"ほ"};
+const SMALL_MAP={"ゃ":"や","ゅ":"ゆ","ょ":"よ"};
 const DAKUTEN_PATHS=["M71 11 L79 21","M82 11 L90 21"];
 const DAKUTEN_NUMBERS=[{x:75,y:10,n:1},{x:86,y:10,n:2}];
 const HANDAKUTEN_PATHS=["M85 16 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0"];
 const HANDAKUTEN_NUMBERS=[{x:85,y:10,n:1}];
+const SMALL_SCALE=0.76;
+const SMALL_OFFSET=(54.5*(1-SMALL_SCALE));
 function getKanaData(ch){
   if(KVG[ch]) return KVG[ch];
-  var base=VOICED_MAP[ch] || SEMI_VOICED_MAP[ch];
+  var base=VOICED_MAP[ch] || SEMI_VOICED_MAP[ch] || SMALL_MAP[ch];
   if(!base || !KVG[base]) return null;
+  if(SMALL_MAP[ch]){
+    return { paths: KVG[base].paths.slice(), numbers: KVG[base].numbers.slice(), scale: SMALL_SCALE, offsetX: SMALL_OFFSET, offsetY: SMALL_OFFSET };
+  }
   var mark = VOICED_MAP[ch] ? {paths:DAKUTEN_PATHS,numbers:DAKUTEN_NUMBERS} : {paths:HANDAKUTEN_PATHS,numbers:HANDAKUTEN_NUMBERS};
   return { paths: KVG[base].paths.concat(mark.paths), numbers: KVG[base].numbers.concat(mark.numbers) };
 }
@@ -338,17 +344,22 @@ function guides(){
 function svg(data,mode,showNumbers){
   var opacity = mode==="model" ? 1 : (mode==="trace1" ? 0.34 : (mode==="trace2" ? 0.18 : 0));
   var body="";
+  var tf = data && data.scale ? ('translate('+data.offsetX+' '+data.offsetY+') scale('+data.scale+')') : '';
   if(data && opacity>0){
+    var inner="";
     data.paths.forEach(function(d,i){
-      body += '<path d="'+d+'" fill="none" stroke="'+COLORS[i%COLORS.length]+'" stroke-width="'+(mode==="model"?4.8:4.2)+'" stroke-linecap="round" stroke-linejoin="round" opacity="'+opacity+'"/>';
+      inner += '<path d="'+d+'" fill="none" stroke="'+COLORS[i%COLORS.length]+'" stroke-width="'+(mode==="model"?4.8:4.2)+'" stroke-linecap="round" stroke-linejoin="round" opacity="'+opacity+'"/>';
     });
+    body += tf ? ('<g transform="'+tf+'">'+inner+'</g>') : inner;
   }
   if(data && mode==="model" && showNumbers){
+    var nums="";
     data.numbers.forEach(function(a,i){
       var c=COLORS[i%COLORS.length], cy=a.y-3;
-      body += '<circle cx="'+a.x+'" cy="'+cy+'" r="7" fill="'+c+'"/>' +
+      nums += '<circle cx="'+a.x+'" cy="'+cy+'" r="7" fill="'+c+'"/>' +
               '<text x="'+a.x+'" y="'+(cy+2.8)+'" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">'+(i+1)+'</text>';
     });
+    body += tf ? ('<g transform="'+tf+'">'+nums+'</g>') : nums;
   }
   // すべての文字を同じ安全領域で表示。端末ごとの差が出る getBBox は使わない。
   return '<svg class="svgbox" viewBox="-12 -12 133 133" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">'+guides()+body+'</svg>';
@@ -485,6 +496,10 @@ function drawKanaInSquare(ctx,data,x,y,size,mode,showNumbers){
   ctx.save();
   ctx.translate(x+12*sc,y+12*sc);
   ctx.scale(sc,sc);
+  if(data.scale){
+    ctx.translate(data.offsetX || 0, data.offsetY || 0);
+    ctx.scale(data.scale, data.scale);
+  }
   ctx.globalAlpha=opacity;
   data.paths.forEach(function(d,i){
     var path=new Path2D(d);
