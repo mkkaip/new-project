@@ -273,6 +273,32 @@ let selected=new Set();
 let appMode="normal";
 let nameSequence=[];
 
+function trackEvent(name,params){
+  try{
+    if(typeof window.gtag==="function") window.gtag("event",name,params||{});
+  }catch(e){}
+}
+function kanaCategory(ch){
+  if(SMALL_MAP[ch]) return "yoon";
+  if(SEMI_VOICED_MAP[ch]) return "semi_voiced";
+  if(VOICED_MAP[ch]) return "voiced";
+  return "basic";
+}
+function hasYoon(chars){return chars.some(ch=>!!SMALL_MAP[ch]);}
+function hasDakuten(chars){return chars.some(ch=>!!VOICED_MAP[ch] || !!SEMI_VOICED_MAP[ch]);}
+function printEventPayload(cfg){
+  var chars=(cfg && cfg.chars) ? cfg.chars : currentChars();
+  var mode=(cfg && cfg.mode) ? cfg.mode : appMode;
+  return {
+    mode:mode,
+    chars_count:chars.length,
+    layout:(cfg && cfg.layout) ? cfg.layout : (document.getElementById("layoutMode") ? document.getElementById("layoutMode").value : "auto"),
+    show_numbers:(cfg && cfg.numbers!==undefined) ? (cfg.numbers?1:0) : ((document.getElementById("numbers") && document.getElementById("numbers").checked)?1:0),
+    has_yoon:hasYoon(chars)?1:0,
+    has_dakuten:hasDakuten(chars)?1:0
+  };
+}
+
 function orderedSelected(){return ORDER.filter(ch=>selected.has(ch));}
 function currentChars(){return appMode==="name"?nameSequence.slice():orderedSelected();}
 function setMode(mode){
@@ -311,8 +337,13 @@ function renderTable(){
         if(appMode==="name"){
           if(nameSequence.length>=10){ alert("名前モードは10文字までです。"); return; }
           nameSequence.push(ch);
+          trackEvent("kana_select",{kana:ch,select_mode:"name",action:"add",kana_category:kanaCategory(ch),sequence_length:nameSequence.length});
+          if(SMALL_MAP[ch]) trackEvent("yoon_select",{kana:ch,select_mode:"name",sequence_length:nameSequence.length});
         }else{
+          var action=selected.has(ch)?"remove":"add";
           selected.has(ch)?selected.delete(ch):selected.add(ch);
+          trackEvent("kana_select",{kana:ch,select_mode:"normal",action:action,kana_category:kanaCategory(ch),selected_count:orderedSelected().length});
+          if(SMALL_MAP[ch] && action==="add") trackEvent("yoon_select",{kana:ch,select_mode:"normal",selected_count:orderedSelected().length});
         }
         update();
       };
@@ -650,6 +681,7 @@ async function makePdfBlob(cfg){
 }
 async function exportPdfFromPrintPage(){
   var btn=document.getElementById("doPrintNow"),help=document.getElementById("printHelp"),cfg=getPrintParams();
+  trackEvent("pdf_export_start",printEventPayload(cfg));
   btn.disabled=true;btn.textContent="PDF作成中…";help.textContent="A4 PDFを端末内で作成しています。少しお待ちください。";
   var popup=null;try{popup=window.open("","_blank");}catch(e){}
   try{
@@ -658,9 +690,11 @@ async function exportPdfFromPrintPage(){
     fallback.href=url;fallback.download=filename;fallback.style.display="inline-flex";
     if(popup && !popup.closed){popup.location.replace(url);help.textContent="PDFを開きました。共有メニューから保存・印刷できます。";}
     else{help.textContent="PDFを作成しました。下の「PDFを開く・保存」を押してください。";}
+    trackEvent("pdf_export",Object.assign(printEventPayload(cfg),{file_type:"pdf"}));
     btn.textContent="PDFをもう一度作成";
   }catch(e){
     if(popup && !popup.closed) popup.close();
+    trackEvent("pdf_export_error",Object.assign(printEventPayload(cfg),{error_type:"generation_failed"}));
     help.textContent="PDFの作成に失敗しました。SafariまたはChromeで開き直して、もう一度お試しください。";
     btn.textContent="PDFに書き出す";alert(e && e.message?e.message:"PDF作成に失敗しました");
   }finally{btn.disabled=false;}
@@ -668,6 +702,7 @@ async function exportPdfFromPrintPage(){
 function renderDedicatedPrint(){
   var cfg=getPrintParams();
   if(!cfg.chars.length){ window.location.href=window.location.pathname; return; }
+  trackEvent("print_open",printEventPayload(cfg));
   var mobile=isMobileLike();
   var per=cfg.mode==="name" ? cfg.chars.length : resolveLayoutValue(cfg.chars.length,cfg.layout);
   var pages=cfg.mode==="name" ? 1 : Math.ceil(cfg.chars.length/per);
@@ -700,29 +735,43 @@ function renderDedicatedPrint(){
     if(cfg.mode==="name"){ q.set("mode","name"); q.set("chars",cfg.chars.join('')); }
     window.location.href=window.location.pathname+(q.toString()?('?'+q.toString()):'');
   });
-  document.getElementById("doPrintNow").addEventListener("click",function(){ if(mobile) exportPdfFromPrintPage(); else window.print(); });
+  document.getElementById("doPrintNow").addEventListener("click",function(){
+    if(mobile) exportPdfFromPrintPage();
+    else{ trackEvent("browser_print",printEventPayload(cfg)); window.print(); }
+  });
 }
 function startNormalMode(){
-  document.getElementById("normalModeBtn").onclick=()=>setMode("normal");
-  document.getElementById("nameModeBtn").onclick=()=>setMode("name");
+  document.getElementById("normalModeBtn").onclick=()=>{setMode("normal");trackEvent("mode_change",{mode:"normal"});};
+  document.getElementById("nameModeBtn").onclick=()=>{setMode("name");trackEvent("name_mode",{mode:"name"});};
   document.getElementById("allBtn").onclick=()=>{
-    if(appMode==="name") nameSequence.pop();
-    else selected=new Set(ORDER);
+    if(appMode==="name"){
+      nameSequence.pop();
+      trackEvent("name_edit",{action:"undo_last",sequence_length:nameSequence.length});
+    }else{
+      selected=new Set(ORDER);
+      trackEvent("bulk_select",{action:"select_all",selected_count:ORDER.length});
+    }
     update();
   };
   document.getElementById("clearBtn").onclick=()=>{
-    if(appMode==="name") nameSequence=[];
-    else selected.clear();
+    if(appMode==="name"){
+      nameSequence=[];
+      trackEvent("name_edit",{action:"clear_all",sequence_length:0});
+    }else{
+      selected.clear();
+      trackEvent("bulk_select",{action:"clear_all",selected_count:0});
+    }
     update();
   };
-  document.getElementById("layoutMode").onchange=renderPreview;
-  document.getElementById("numbers").onchange=renderPreview;
+  document.getElementById("layoutMode").onchange=()=>{trackEvent("layout_select",{layout:document.getElementById("layoutMode").value,selected_count:currentChars().length});renderPreview();};
+  document.getElementById("numbers").onchange=()=>{trackEvent("numbers_toggle",{show_numbers:document.getElementById("numbers").checked?1:0,mode:appMode});renderPreview();};
   document.getElementById("printBtn").onclick=function(){
     var chars=currentChars();
     if(!chars.length){
       alert(appMode==="name" ? "名前の文字を順番に選択してください。" : "印刷するひらがなを選択してください。");
       return;
     }
+    trackEvent("print_prepare",printEventPayload({mode:appMode,chars:chars,layout:appMode!=="name"?document.getElementById("layoutMode").value:"name",numbers:document.getElementById("numbers").checked}));
     var qs=new URLSearchParams();
     qs.set("print","1");
     qs.set("mode",appMode);
