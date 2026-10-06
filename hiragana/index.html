@@ -254,6 +254,9 @@ const SEMI_VOICED_MAP={"ぱ":"は","ぴ":"ひ","ぷ":"ふ","ぺ":"へ","ぽ":"�
 const SMALL_MAP={"ゃ":"や","ゅ":"ゆ","ょ":"よ"};
 const DAKUTEN_PATHS=["M71 11 L79 21","M82 11 L90 21"];
 const DAKUTEN_NUMBERS=[{x:75,y:10,n:1},{x:86,y:10,n:2}];
+const DAKUTEN_OVERRIDES={
+  "で":{paths:["M76 3 L84 13","M88 3 L96 13"],numbers:[{x:80,y:2,n:1},{x:92,y:2,n:2}]}
+};
 const HANDAKUTEN_PATHS=["M85 16 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0"];
 const HANDAKUTEN_NUMBERS=[{x:85,y:10,n:1}];
 const SMALL_SCALE=0.46;
@@ -266,7 +269,9 @@ function getKanaData(ch){
   if(SMALL_MAP[ch]){
     return { paths: KVG[base].paths.slice(), numbers: KVG[base].numbers.slice(), scale: SMALL_SCALE, offsetX: SMALL_OFFSET_X, offsetY: SMALL_OFFSET_Y, isSmall: true };
   }
-  var mark = VOICED_MAP[ch] ? {paths:DAKUTEN_PATHS,numbers:DAKUTEN_NUMBERS} : {paths:HANDAKUTEN_PATHS,numbers:HANDAKUTEN_NUMBERS};
+  var mark;
+  if(VOICED_MAP[ch]) mark = DAKUTEN_OVERRIDES[ch] || {paths:DAKUTEN_PATHS,numbers:DAKUTEN_NUMBERS};
+  else mark = {paths:HANDAKUTEN_PATHS,numbers:HANDAKUTEN_NUMBERS};
   return { paths: KVG[base].paths.concat(mark.paths), numbers: KVG[base].numbers.concat(mark.numbers) };
 }
 let selected=new Set();
