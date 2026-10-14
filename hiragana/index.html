@@ -32,6 +32,7 @@ h1{margin:0;font-size:27px} .lead{margin:5px 0 0;color:var(--muted);font-size:14
 .name-chip{cursor:pointer;position:relative}
 .name-chip::after{content:"×";font-size:9px;position:absolute;right:2px;top:-2px;color:#6b7a90}
 .name-sheet-body{height:265mm;display:flex;flex-direction:column;padding-top:2mm}
+.name-sheet-body.landscape{height:178mm}
 .name-target{display:flex;align-items:baseline;gap:3mm;justify-content:center;margin:0 0 3mm;font-size:10pt;color:#64748b}
 .name-target strong{font-size:24pt;color:#172033;letter-spacing:.08em}
 .name-stage{border:.35mm solid #d5dee9;border-radius:3mm;padding:2.5mm 3mm;margin-bottom:2.2mm;flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
@@ -64,7 +65,9 @@ select{border:1px solid #cad4df;border-radius:8px;background:white;padding:7px 9
 .preview-scroll{overflow:auto;background:#eef2f7;border-radius:12px;padding:14px}
 #preview{display:flex;flex-direction:column;gap:16px;align-items:center}
 .sheet-shell{width:126mm;height:178.2mm;position:relative}
+.sheet-shell.landscape{width:178.2mm;height:126mm}
 .print-sheet{width:210mm;height:297mm;background:white;padding:8mm;position:absolute;left:0;top:0;transform:scale(.6);transform-origin:top left;box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:hidden}
+.print-sheet.landscape{width:297mm;height:210mm}
 .sheet-header{height:13mm;display:flex;align-items:end;justify-content:space-between;border-bottom:.35mm solid #cbd5e1;padding-bottom:2mm;margin-bottom:3mm}
 .sheet-title{font-size:17pt;font-weight:800;letter-spacing:.03em}
 .name-line{font-size:8.5pt;color:#6f7d8e}
@@ -111,7 +114,9 @@ select{border:1px solid #cad4df;border-radius:8px;background:white;padding:7px 9
   .preview-scroll{padding:0;background:white;overflow:visible}
   #preview{gap:0}
   .sheet-shell{width:210mm;height:297mm}
+  .sheet-shell.landscape{width:297mm;height:210mm}
   .print-sheet{position:relative;transform:none;width:210mm;height:297mm;box-shadow:none;page-break-after:always;break-after:page}
+  .print-sheet.landscape{width:297mm;height:210mm}
   .sheet-shell:last-child .print-sheet{page-break-after:auto;break-after:auto}
 }
 </style>
@@ -155,6 +160,13 @@ select{border:1px solid #cad4df;border-radius:8px;background:white;padding:7px 9
           <option value="2">2文字</option>
           <option value="4">4文字</option>
           <option value="6">6文字</option>
+        </select>
+      </div>
+      <div class="setting" id="nameOrientationSetting" style="display:none">
+        <label for="nameOrientation">名前レイアウト</label>
+        <select id="nameOrientation">
+          <option value="portrait" selected>縦向き</option>
+          <option value="landscape">横向き（文字を大きく）</option>
         </select>
       </div>
       <div class="setting">
@@ -298,6 +310,7 @@ function printEventPayload(cfg){
     mode:mode,
     chars_count:chars.length,
     layout:(cfg && cfg.layout) ? cfg.layout : (document.getElementById("layoutMode") ? document.getElementById("layoutMode").value : "auto"),
+    orientation:(cfg && cfg.orientation) ? cfg.orientation : (document.getElementById("nameOrientation") ? document.getElementById("nameOrientation").value : "portrait"),
     show_numbers:(cfg && cfg.numbers!==undefined) ? (cfg.numbers?1:0) : ((document.getElementById("numbers") && document.getElementById("numbers").checked)?1:0),
     has_yoon:hasYoon(chars)?1:0,
     has_dakuten:hasDakuten(chars)?1:0
@@ -313,6 +326,7 @@ function setMode(mode){
   document.getElementById("selectHeading").textContent = appMode==="name" ? "1. 名前を順番に選択" : "1. ひらがなを選択";
   document.getElementById("selectedTitle").textContent = appMode==="name" ? "名前" : "選択中";
   document.getElementById("layoutSetting").style.display = appMode==="name" ? "none" : "flex";
+  document.getElementById("nameOrientationSetting").style.display = appMode==="name" ? "flex" : "none";
   document.getElementById("allBtn").textContent = appMode==="name" ? "1文字もどす" : "全選択";
   document.getElementById("clearBtn").textContent = appMode==="name" ? "全消去" : "全解除";
   document.getElementById("nameDisplay").classList.toggle("show",appMode==="name");
@@ -425,21 +439,24 @@ function card(ch,layout,showNumbers){
     </div>
   </article>`;
 }
-function nameGrid(chars,mode,showNumbers){
+function nameGrid(chars,mode,showNumbers,orientation){
   var n=Math.max(1,chars.length);
-  var maxW=Math.min(194,n*38+(n-1)*2);
+  var contentW=orientation==="landscape" ? 281 : 194;
+  var maxSq=orientation==="landscape" ? 38 : 38;
+  var maxW=Math.min(contentW,n*maxSq+(n-1)*2);
   return '<div class="name-char-grid" style="grid-template-columns:repeat('+n+',1fr);max-width:'+maxW+'mm">'+chars.map(function(ch){ return '<div class="name-practice-square">'+svg(getKanaData(ch),mode,mode==="model"&&showNumbers)+'</div>'; }).join('')+'</div>';
 }
-function namePracticeSheet(chars,showNumbers){
+function namePracticeSheet(chars,showNumbers,orientation){
+  orientation=orientation==="landscape" ? "landscape" : "portrait";
   var name=chars.join('');
-  return '<section class="print-sheet">'+
+  return '<section class="print-sheet '+orientation+'">'+
     '<div class="sheet-header"><div class="sheet-title">なまえ れんしゅう</div><div class="name-line">なまえ：'+name+'</div></div>'+
-    '<div class="name-sheet-body">'+
+    '<div class="name-sheet-body '+orientation+'">'+
       '<div class="name-target"><span>おなまえ</span><strong>'+name+'</strong></div>'+
-      '<div class="name-stage"><div class="name-stage-label">① おてほんを みよう</div>'+nameGrid(chars,'model',showNumbers)+'</div>'+
-      '<div class="name-stage"><div class="name-stage-label">② うすいせんを なぞろう</div>'+nameGrid(chars,'trace1',false)+'</div>'+
-      '<div class="name-stage"><div class="name-stage-label">③ もっと うすいせんを なぞろう</div>'+nameGrid(chars,'trace2',false)+'</div>'+
-      '<div class="name-stage"><div class="name-stage-label">④ じぶんで かいてみよう</div>'+nameGrid(chars,'blank',false)+'</div>'+
+      '<div class="name-stage"><div class="name-stage-label">① おてほんを みよう</div>'+nameGrid(chars,'model',showNumbers,orientation)+'</div>'+
+      '<div class="name-stage"><div class="name-stage-label">② うすいせんを なぞろう</div>'+nameGrid(chars,'trace1',false,orientation)+'</div>'+
+      '<div class="name-stage"><div class="name-stage-label">③ もっと うすいせんを なぞろう</div>'+nameGrid(chars,'trace2',false,orientation)+'</div>'+
+      '<div class="name-stage"><div class="name-stage-label">④ じぶんで かいてみよう</div>'+nameGrid(chars,'blank',false,orientation)+'</div>'+
     '</div>'+
     '<div class="credit">Stroke data: KanjiVG / CC BY-SA</div>'+
   '</section>';
@@ -453,8 +470,9 @@ function renderPreview(){
   }
   const showNumbers=document.getElementById("numbers").checked;
   if(appMode==="name"){
-    document.getElementById("summaryBadge").textContent='A4・1ページ・名前：'+chars.join('');
-    const shell=document.createElement("div"); shell.className="sheet-shell"; shell.innerHTML=namePracticeSheet(chars,showNumbers); root.appendChild(shell); return;
+    var orientation=document.getElementById("nameOrientation").value;
+    document.getElementById("summaryBadge").textContent='A4・1ページ・'+(orientation==="landscape"?"横向き":"縦向き")+'・名前：'+chars.join('');
+    const shell=document.createElement("div"); shell.className="sheet-shell"+(orientation==="landscape"?" landscape":""); shell.innerHTML=namePracticeSheet(chars,showNumbers,orientation); root.appendChild(shell); return;
   }
   const per=resolveLayout(chars.length);
   const pages=Math.ceil(chars.length/per);
@@ -493,7 +511,7 @@ function getPrintParams(){
     var seen=new Set();
     Array.from(raw).forEach(function(ch){ if(ORDER.indexOf(ch)!==-1 && !seen.has(ch)){ seen.add(ch); chars.push(ch); } });
   }
-  return { chars:chars, mode:mode, layout:p.get("layout") || "auto", numbers:p.get("numbers")!=="0" };
+  return { chars:chars, mode:mode, layout:p.get("layout") || "auto", numbers:p.get("numbers")!=="0", orientation:p.get("orientation")==="landscape" ? "landscape" : "portrait" };
 }
 function isMobileLike(){
   return /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) || window.matchMedia("(max-width: 930px)").matches;
@@ -621,29 +639,34 @@ function drawWorkbookPage(chars,per,showNumbers){
   canvasText(ctx,"Stroke data: KanjiVG / CC BY-SA",mmToPx(202),mmToPx(293.5),pxFont(5.4),400,"#9aa6b5","right");
   return canvas;
 }
-function drawNameWorkbookPage(chars,showNumbers){
-  var canvas=document.createElement("canvas");canvas.width=1240;canvas.height=1754;
+function drawNameWorkbookPage(chars,showNumbers,orientation){
+  var landscape=orientation==="landscape";
+  var canvas=document.createElement("canvas");
+  canvas.width=landscape?1754:1240;
+  canvas.height=landscape?1240:1754;
   var ctx=canvas.getContext("2d",{alpha:false});ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);
-  var pad=8, contentW=194, headerY=8, headerH=13;
+  var pageW=landscape?297:210, pageH=landscape?210:297;
+  var pad=8, contentW=pageW-pad*2, headerY=8, headerH=13;
   var name=chars.join("");
   canvasText(ctx,"なまえ れんしゅう",mmToPx(pad),mmToPx(headerY+2),pxFont(17),800,"#172033","left");
-  canvasText(ctx,"なまえ："+name,mmToPx(202),mmToPx(headerY+5),pxFont(8.5),500,"#6f7d8e","right");
-  ctx.strokeStyle="#cbd5e1";ctx.lineWidth=mmToPx(.35);ctx.beginPath();ctx.moveTo(mmToPx(pad),mmToPx(headerY+headerH));ctx.lineTo(mmToPx(210-pad),mmToPx(headerY+headerH));ctx.stroke();
-  canvasText(ctx,"おなまえ",mmToPx(105),mmToPx(25),pxFont(9),700,"#64748b","center");
-  canvasText(ctx,name,mmToPx(105),mmToPx(31),pxFont(22),800,"#172033","center");
+  canvasText(ctx,"なまえ："+name,mmToPx(pageW-pad),mmToPx(headerY+5),pxFont(8.5),500,"#6f7d8e","right");
+  ctx.strokeStyle="#cbd5e1";ctx.lineWidth=mmToPx(.35);ctx.beginPath();ctx.moveTo(mmToPx(pad),mmToPx(headerY+headerH));ctx.lineTo(mmToPx(pageW-pad),mmToPx(headerY+headerH));ctx.stroke();
+  canvasText(ctx,"おなまえ",mmToPx(pageW/2),mmToPx(landscape?23:25),pxFont(9),700,"#64748b","center");
+  canvasText(ctx,name,mmToPx(pageW/2),mmToPx(landscape?29:31),pxFont(landscape?24:22),800,"#172033","center");
   var labels=["① おてほんを みよう","② うすいせんを なぞろう","③ もっと うすいせんを なぞろう","④ じぶんで かいてみよう"];
   var modes=["model","trace1","trace2","blank"];
   var n=Math.max(1,chars.length), gap=mmToPx(2), avail=mmToPx(contentW);
-  var sq=Math.min(mmToPx(38),(avail-gap*(n-1))/n);
-  var rowW=sq*n+gap*(n-1), startX=mmToPx(105)-rowW/2;
-  var stageTop=55, stageStep=56;
+  var maxSq=mmToPx(38);
+  var sq=Math.min(maxSq,(avail-gap*(n-1))/n);
+  var rowW=sq*n+gap*(n-1), startX=mmToPx(pageW/2)-rowW/2;
+  var stageTop=landscape?37:55, stageStep=landscape?42:56, labelGap=landscape?6:8;
   for(var s=0;s<4;s++){
     var y=mmToPx(stageTop+s*stageStep);
-    canvasText(ctx,labels[s],mmToPx(105),y,pxFont(8),800,"#334155","center");
-    var sy=y+mmToPx(8);
+    canvasText(ctx,labels[s],mmToPx(pageW/2),y,pxFont(8),800,"#334155","center");
+    var sy=y+mmToPx(labelGap);
     chars.forEach(function(ch,i){ drawKanaInSquare(ctx,getKanaData(ch),startX+i*(sq+gap),sy,sq,modes[s],modes[s]==="model"&&showNumbers); });
   }
-  canvasText(ctx,"Stroke data: KanjiVG / CC BY-SA",mmToPx(202),mmToPx(293.5),pxFont(5.4),400,"#9aa6b5","right");
+  canvasText(ctx,"Stroke data: KanjiVG / CC BY-SA",mmToPx(pageW-pad),mmToPx(pageH-3.5),pxFont(5.4),400,"#9aa6b5","right");
   return canvas;
 }
 function asciiBytes(s){return new TextEncoder().encode(s);}
@@ -654,16 +677,20 @@ function canvasJpegBytes(canvas){
   });
 }
 async function makePdfBlob(cfg){
-  var canvases=[];
+  var pages=[];
   if(cfg.mode==="name"){
-    canvases.push(drawNameWorkbookPage(cfg.chars,cfg.numbers));
+    pages.push({
+      canvas:drawNameWorkbookPage(cfg.chars,cfg.numbers,cfg.orientation),
+      pageW:cfg.orientation==="landscape"?841.89:595.28,
+      pageH:cfg.orientation==="landscape"?595.28:841.89
+    });
   }else{
     var per=resolveLayoutValue(cfg.chars.length,cfg.layout), batches=[];
     for(var i=0;i<cfg.chars.length;i+=per) batches.push(cfg.chars.slice(i,i+per));
-    for(var j=0;j<batches.length;j++) canvases.push(drawWorkbookPage(batches[j],per,cfg.numbers));
+    for(var j=0;j<batches.length;j++) pages.push({canvas:drawWorkbookPage(batches[j],per,cfg.numbers),pageW:595.28,pageH:841.89});
   }
   var jpgs=[];
-  for(var j=0;j<canvases.length;j++) jpgs.push(await canvasJpegBytes(canvases[j]));
+  for(var j=0;j<pages.length;j++) jpgs.push(await canvasJpegBytes(pages[j].canvas));
   var totalObjs=2+jpgs.length*3, offsets=new Array(totalObjs+1).fill(0), parts=[];
   function push(b){parts.push(typeof b==="string"?asciiBytes(b):b);}
   function lengthNow(){return parts.reduce(function(a,b){return a+b.length;},0);}
@@ -673,10 +700,10 @@ async function makePdfBlob(cfg){
   offsets[2]=lengthNow();push("2 0 obj\n<< /Type /Pages /Kids ["+kids.join(" ")+"] /Count "+jpgs.length+" >>\nendobj\n");
   for(var p=0;p<jpgs.length;p++){
     var pageId=3+p*3,imgId=4+p*3,contentId=5+p*3;
-    offsets[pageId]=lengthNow();push(pageId+" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 "+imgId+" 0 R >> >> /Contents "+contentId+" 0 R >>\nendobj\n");
-    var jpg=jpgs[p];
-    offsets[imgId]=lengthNow();push(imgId+" 0 obj\n<< /Type /XObject /Subtype /Image /Width 1240 /Height 1754 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Interpolate true /Length "+jpg.length+" >>\nstream\n");push(jpg);push("\nendstream\nendobj\n");
-    var cs="q\n595.28 0 0 841.89 0 0 cm\n/Im0 Do\nQ\n", csb=asciiBytes(cs);
+    var info=pages[p], jpg=jpgs[p];
+    offsets[pageId]=lengthNow();push(pageId+" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 "+info.pageW+" "+info.pageH+"] /Resources << /XObject << /Im0 "+imgId+" 0 R >> >> /Contents "+contentId+" 0 R >>\nendobj\n");
+    offsets[imgId]=lengthNow();push(imgId+" 0 obj\n<< /Type /XObject /Subtype /Image /Width "+info.canvas.width+" /Height "+info.canvas.height+" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Interpolate true /Length "+jpg.length+" >>\nstream\n");push(jpg);push("\nendstream\nendobj\n");
+    var cs="q\n"+info.pageW+" 0 0 "+info.pageH+" 0 0 cm\n/Im0 Do\nQ\n", csb=asciiBytes(cs);
     offsets[contentId]=lengthNow();push(contentId+" 0 obj\n<< /Length "+csb.length+" >>\nstream\n");push(csb);push("endstream\nendobj\n");
   }
   var xref=lengthNow();push("xref\n0 "+(totalObjs+1)+"\n0000000000 65535 f \n");
@@ -704,14 +731,20 @@ async function exportPdfFromPrintPage(){
     btn.textContent="PDFに書き出す";alert(e && e.message?e.message:"PDF作成に失敗しました");
   }finally{btn.disabled=false;}
 }
+function setPrintOrientation(orientation){
+  var style=document.getElementById("dynamicPrintPage");
+  if(!style){ style=document.createElement("style"); style.id="dynamicPrintPage"; document.head.appendChild(style); }
+  style.textContent='@media print{@page{size:A4 '+(orientation==="landscape"?"landscape":"portrait")+';margin:0}}';
+}
 function renderDedicatedPrint(){
   var cfg=getPrintParams();
   if(!cfg.chars.length){ window.location.href=window.location.pathname; return; }
   trackEvent("print_open",printEventPayload(cfg));
   var mobile=isMobileLike();
+  setPrintOrientation(cfg.mode==="name"?cfg.orientation:"portrait");
   var per=cfg.mode==="name" ? cfg.chars.length : resolveLayoutValue(cfg.chars.length,cfg.layout);
   var pages=cfg.mode==="name" ? 1 : Math.ceil(cfg.chars.length/per);
-  var badge=cfg.mode==="name" ? ('A4・1ページ・名前：'+cfg.chars.join('')) : ('A4・'+pages+'ページ・'+per+'文字/ページ');
+  var badge=cfg.mode==="name" ? ('A4・1ページ・'+(cfg.orientation==="landscape"?"横向き":"縦向き")+'・名前：'+cfg.chars.join('')) : ('A4・'+pages+'ページ・'+per+'文字/ページ');
   document.body.innerHTML=
     '<div class="print-toolbar">'+
       '<button type="button" class="btn" id="backToSelect">← 文字選択に戻る</button>'+
@@ -727,7 +760,7 @@ function renderDedicatedPrint(){
   var root=document.getElementById("printPreview");
   root.style.display="flex";root.style.flexDirection="column";root.style.gap="16px";root.style.alignItems="center";
   if(cfg.mode==="name"){
-    var shell=document.createElement("div");shell.className="sheet-shell";shell.innerHTML=namePracticeSheet(cfg.chars,cfg.numbers);root.appendChild(shell);
+    var shell=document.createElement("div");shell.className="sheet-shell"+(cfg.orientation==="landscape"?" landscape":"");shell.innerHTML=namePracticeSheet(cfg.chars,cfg.numbers,cfg.orientation);root.appendChild(shell);
   }else{
     for(var i=0;i<cfg.chars.length;i+=per){
       var batch=cfg.chars.slice(i,i+per), shell=document.createElement("div");shell.className="sheet-shell";
@@ -737,7 +770,7 @@ function renderDedicatedPrint(){
   }
   document.getElementById("backToSelect").addEventListener("click",function(){
     var q=new URLSearchParams();
-    if(cfg.mode==="name"){ q.set("mode","name"); q.set("chars",cfg.chars.join('')); }
+    if(cfg.mode==="name"){ q.set("mode","name"); q.set("chars",cfg.chars.join('')); q.set("orientation",cfg.orientation); }
     window.location.href=window.location.pathname+(q.toString()?('?'+q.toString()):'');
   });
   document.getElementById("doPrintNow").addEventListener("click",function(){
@@ -769,6 +802,7 @@ function startNormalMode(){
     update();
   };
   document.getElementById("layoutMode").onchange=()=>{trackEvent("layout_select",{layout:document.getElementById("layoutMode").value,selected_count:currentChars().length});renderPreview();};
+  document.getElementById("nameOrientation").onchange=()=>{trackEvent("name_orientation_select",{orientation:document.getElementById("nameOrientation").value,chars_count:currentChars().length});renderPreview();};
   document.getElementById("numbers").onchange=()=>{trackEvent("numbers_toggle",{show_numbers:document.getElementById("numbers").checked?1:0,mode:appMode});renderPreview();};
   document.getElementById("printBtn").onclick=function(){
     var chars=currentChars();
@@ -782,12 +816,14 @@ function startNormalMode(){
     qs.set("mode",appMode);
     qs.set("chars",chars.join(""));
     if(appMode!=="name") qs.set("layout",document.getElementById("layoutMode").value);
+    if(appMode==="name") qs.set("orientation",document.getElementById("nameOrientation").value);
     qs.set("numbers",document.getElementById("numbers").checked?"1":"0");
     window.location.href=window.location.pathname+"?"+qs.toString();
   };
   var p=new URLSearchParams(window.location.search);
   if(p.get("mode")==="name"){
     nameSequence=Array.from(p.get("chars")||"").filter(function(ch){return ORDER.indexOf(ch)!==-1;}).slice(0,10);
+    document.getElementById("nameOrientation").value=p.get("orientation")==="landscape"?"landscape":"portrait";
     setMode("name");
   }else{
     setMode("normal");
